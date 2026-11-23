@@ -31,9 +31,7 @@ describe('per-group credential placeholder', () => {
   });
 
   it('trims the group placeholder', () => {
-    expect(apiKeyFor({ ...base, NANOCLAW_CREDENTIAL_PLACEHOLDER: `  ${GROUP_PLACEHOLDER}\n` })).toBe(
-      GROUP_PLACEHOLDER,
-    );
+    expect(apiKeyFor({ ...base, NANOCLAW_CREDENTIAL_PLACEHOLDER: `  ${GROUP_PLACEHOLDER}\n` })).toBe(GROUP_PLACEHOLDER);
   });
 
   it('keeps the shared constant without a group placeholder', () => {

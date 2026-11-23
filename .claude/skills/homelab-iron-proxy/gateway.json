@@ -1,0 +1,6 @@
+{
+  "kind": "homelab-iron-proxy",
+  "label": "Homelab Iron Proxy",
+  "description": "Use an external, shared Iron Proxy that Ansible runs. One placeholder per agent group; keys stay in the proxy.",
+  "default": false
+}
