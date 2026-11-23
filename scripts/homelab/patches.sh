@@ -56,7 +56,7 @@ cmd_check() {
     echo "no patches in patches/"
     return 0
   fi
-  printf '%-24s %-9s %-11s %s\n' PATCH APPLIED UPSTREAM DIFF
+  printf '%-28s %-9s %-11s %s\n' PATCH APPLIED UPSTREAM DIFF
   for name in $names; do
     local applied=no upstream=no diff=-
     if is_in "$name" work; then applied=yes; else missing=1; fi
@@ -70,7 +70,7 @@ cmd_check() {
         diff=CONFLICT
       fi
     fi
-    printf '%-24s %-9s %-11s %s\n' "$name" "$applied" "$upstream" "$diff"
+    printf '%-28s %-9s %-11s %s\n' "$name" "$applied" "$upstream" "$diff"
   done
   if [ "$missing" -ne 0 ]; then
     echo

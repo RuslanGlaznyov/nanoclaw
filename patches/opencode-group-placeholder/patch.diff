@@ -1,0 +1,46 @@
+diff --git a/.claude/skills/add-opencode/payload/container/agent-runner/src/providers/opencode-config.ts b/.claude/skills/add-opencode/payload/container/agent-runner/src/providers/opencode-config.ts
+index 9d9f0e6e..3f64da55 100644
+--- a/.claude/skills/add-opencode/payload/container/agent-runner/src/providers/opencode-config.ts
++++ b/.claude/skills/add-opencode/payload/container/agent-runner/src/providers/opencode-config.ts
+@@ -105,6 +105,9 @@ export function resolveOpenCodeInference(
+ 
+   // Native API providers also need a placeholder to become connected before
+   // any HTTP request reaches the selected gateway. Model options do not depend on baseURL.
++  // A gateway may give each agent group its own placeholder, so one proxy can
++  // swap in a different key per group. Without one, the shared constant stays.
++  const apiKey = environment.NANOCLAW_CREDENTIAL_PLACEHOLDER?.trim() || OPENCODE_CREDENTIAL_PLACEHOLDER;
+   const providerOptions: Record<string, unknown> = {
+     [provider]: {
+       // A custom base URL on the `openai` provider means a self-hosted
+@@ -116,7 +119,7 @@ export function resolveOpenCodeInference(
+       // documented OpenRouter config) ship their own native ai-sdk
+       // package and must keep OpenCode's default transport resolution.
+       ...(provider === 'openai' && proxyUrl ? { npm: '@ai-sdk/openai-compatible' } : {}),
+-      options: { apiKey: OPENCODE_CREDENTIAL_PLACEHOLDER, ...(proxyUrl ? { baseURL: proxyUrl } : {}) },
++      options: { apiKey, ...(proxyUrl ? { baseURL: proxyUrl } : {}) },
+       ...(modelsToRegister.length > 0
+         ? {
+             models: Object.fromEntries(
+diff --git a/container/agent-runner/src/providers/opencode-config.ts b/container/agent-runner/src/providers/opencode-config.ts
+index 9d9f0e6e..3f64da55 100644
+--- a/container/agent-runner/src/providers/opencode-config.ts
++++ b/container/agent-runner/src/providers/opencode-config.ts
+@@ -105,6 +105,9 @@ export function resolveOpenCodeInference(
+ 
+   // Native API providers also need a placeholder to become connected before
+   // any HTTP request reaches the selected gateway. Model options do not depend on baseURL.
++  // A gateway may give each agent group its own placeholder, so one proxy can
++  // swap in a different key per group. Without one, the shared constant stays.
++  const apiKey = environment.NANOCLAW_CREDENTIAL_PLACEHOLDER?.trim() || OPENCODE_CREDENTIAL_PLACEHOLDER;
+   const providerOptions: Record<string, unknown> = {
+     [provider]: {
+       // A custom base URL on the `openai` provider means a self-hosted
+@@ -116,7 +119,7 @@ export function resolveOpenCodeInference(
+       // documented OpenRouter config) ship their own native ai-sdk
+       // package and must keep OpenCode's default transport resolution.
+       ...(provider === 'openai' && proxyUrl ? { npm: '@ai-sdk/openai-compatible' } : {}),
+-      options: { apiKey: OPENCODE_CREDENTIAL_PLACEHOLDER, ...(proxyUrl ? { baseURL: proxyUrl } : {}) },
++      options: { apiKey, ...(proxyUrl ? { baseURL: proxyUrl } : {}) },
+       ...(modelsToRegister.length > 0
+         ? {
+             models: Object.fromEntries(
