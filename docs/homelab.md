@@ -21,6 +21,7 @@ homelab   main + наши коммиты, рабочая ветка
 | Шлюз Iron Proxy из Ansible: заглушка, прокси и CA на группу | `.claude/skills/homelab-iron-proxy/` | Навык (новые файлы) + одна строка в `src/gateway-providers/installed.ts` |
 | Своя заглушка группы в OpenCode (`NANOCLAW_CREDENTIAL_PLACEHOLDER`) | `patches/opencode-group-placeholder/` | Патч: payload `add-opencode` и установленная копия |
 | Темы Telegram (upstream PR #3971) | `patches/telegram-topics/` | Патч адаптера из ветки `channels` |
+| Правила оператора для группы (`data/homelab-guardrails/<folder>.md`, раздел `# Operator Policy` в начале промпта) | `patches/operator-policy/` | Патч `src/project-doc-compose.ts` + новый модуль `src/homelab-operator-policy.ts` |
 | Скрипт патчей | `scripts/homelab/patches.sh`, `scripts/homelab/patch-lib.sh` | Новые файлы |
 
 Применённые навыки: `add-opencode`, `add-telegram`, `homelab-iron-proxy`. Навык `add-onecli` не применён.
@@ -44,6 +45,7 @@ scripts/homelab/patches.sh revert   # снять
 | `data/homelab-iron-proxy/routes.json` | Ansible (план 3) | 0644 |
 | `data/homelab-iron-proxy/placeholders.env` | Ansible (план 3) | 0600, иначе агент не стартует |
 | `data/gateway-trust/homelab-iron-ca.pem` | Ansible (план 3), копия `ansible-homelab/files/iron-proxy/ca.crt` | 0644 |
+| `data/homelab-guardrails/<folder>.md` | Ansible, только для `role: member`. Агент файл не видит | 0644 |
 | `data/upgrade-state.json` | `scripts/upgrade-state.ts set`, `/update-nanoclaw`, setup | — |
 
 Формат `routes.json` и `placeholders.env`: `.claude/skills/homelab-iron-proxy/SKILL.md`.
@@ -74,7 +76,8 @@ pnpm exec tsx scripts/upgrade-state.ts set
    ```
    Чаще всего конфликтуют:
    - `src/gateway-providers/installed.ts` — оставьте строку `import './homelab-iron-proxy.js';`;
-   - payload `add-opencode` (`opencode-config.ts`) — сохраните патч `opencode-group-placeholder`.
+   - payload `add-opencode` (`opencode-config.ts`) — сохраните патч `opencode-group-placeholder`;
+   - `src/project-doc-compose.ts` — сохраните патч `operator-policy` (вызов `readOperatorPolicy`).
 4. Запустите `/update-nanoclaw`. Он обновляет навыки в отдельном worktree. Обновление может
    перезаписать `src/channels/telegram.ts` и установленные файлы OpenCode.
 5. Проверьте патчи и примените снова, если нужно:
@@ -85,7 +88,8 @@ pnpm exec tsx scripts/upgrade-state.ts set
 6. Сборка и тесты:
    ```bash
    pnpm run build
-   pnpm exec vitest run src/gateway-providers src/channels src/router .claude/skills/homelab-iron-proxy
+   pnpm exec vitest run src/gateway-providers src/channels src/router .claude/skills/homelab-iron-proxy \
+     src/homelab-operator-policy.test.ts src/project-doc-compose.test.ts
    (cd container/agent-runner && bun test --isolate src/providers/opencode*.test.ts)
    ```
 7. Если шаг 5 изменил файлы, закоммитьте их (`homelab: reapply patches`) и обновите метку:

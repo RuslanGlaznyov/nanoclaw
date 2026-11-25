@@ -22,6 +22,7 @@ import path from 'path';
 import { parseSkillSelection, sanitizeStoredMcpServers } from './container-config.js';
 import { getContainerConfig } from './db/container-configs.js';
 import { readGroupPersona } from './group-persona.js';
+import { OPERATOR_POLICY_SECTION, readOperatorPolicy } from './homelab-operator-policy.js';
 import { log } from './log.js';
 import type { AgentGroup } from './types.js';
 
@@ -185,6 +186,11 @@ export async function composeGroupProjectDoc(
     const trimmed = body.trim();
     if (trimmed) sections.push({ name, body: trimmed, droppable });
   };
+
+  // Homelab: the operator policy comes first and is never droppable. The agent
+  // cannot write its source (see homelab-operator-policy.ts).
+  const operatorPolicy = readOperatorPolicy(group.folder);
+  if (operatorPolicy) push(OPERATOR_POLICY_SECTION, operatorPolicy);
 
   // The group's standing instructions lead the document, and are never
   // droppable: a group whose persona is evicted stops being that group.
