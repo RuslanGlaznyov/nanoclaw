@@ -46,31 +46,53 @@ scripts/homelab/patches.sh revert   # снять
 | `data/homelab-iron-proxy/placeholders.env` | Ansible (план 3) | 0600, иначе агент не стартует |
 | `data/gateway-trust/homelab-iron-ca.pem` | Ansible (план 3), копия `ansible-homelab/files/iron-proxy/ca.crt` | 0644 |
 | `data/homelab-guardrails/<folder>.md` | Ansible, только для `role: member`. Агент файл не видит | 0644 |
-| `data/upgrade-state.json` | `scripts/upgrade-state.ts set`, `/update-nanoclaw`, setup | — |
+| `data/upgrade-state.json` | `scripts/upgrade-state.ts set` (на сервере его запускает Ansible после выкатки), `/update-nanoclaw`, setup | — |
 
 Формат `routes.json` и `placeholders.env`: `.claude/skills/homelab-iron-proxy/SKILL.md`.
 
 ## Метка обновления
 
 Хост не стартует, если коммит и дерево в `data/upgrade-state.json` не совпадают с кодом
-(«NanoClaw stopped: update did not go through the supported path»). После каждого своего
-коммита в `homelab` на рабочем хосте:
+(«NanoClaw stopped: update did not go through the supported path»). На сервере метку ставит
+Ansible после каждой выкатки (см. ниже). На другом хосте, где вы запускаете NanoClaw сами,
+после сборки и тестов выполните:
 
 ```bash
 pnpm exec tsx scripts/upgrade-state.ts set
 ```
 
-Делайте это только после успешной сборки и тестов.
+## Выкатка на сервер
 
-## Процедура обновления
+Push в `homelab` не меняет сервер. Сервер запускает свою копию форка
+(`/home/app-nanoclaw/nanoclaw` в контейнере `app-nanoclaw`). Чтобы выкатить новый код:
 
-1. Снимок контейнера Incus (план 3): `incus snapshot create app-nanoclaw pre-update-<дата>`.
-2. Обновите `main`:
+1. Сделайте push в `homelab`.
+2. Сделайте снимок контейнера: `incus snapshot create app-nanoclaw pre-update-<дата>`.
+3. Запустите playbook из репозитория `ansible-homelab`:
+   `./ans ansible-playbook playbooks/apps/nanoclaw.yml -l home-server-macbook,app-nanoclaw`.
+
+Роль `app_nanoclaw` делает `git pull` ветки `homelab`. Если коммит изменился, она:
+
+- запускает `pnpm install --frozen-lockfile` и `pnpm run build`;
+- ставит метку `upgrade-state.ts set`;
+- пересобирает образ агента, только если изменились файлы образа в `container/` (без
+  `container/agent-runner/src`, `container/skills` и `container/CLAUDE.md`: их агент монтирует из
+  копии). Перед сборкой роль останавливает NanoClaw и все контейнеры агентов;
+- перезапускает NanoClaw и агентов всех групп.
+
+Если в копии на сервере изменены файлы под git, `git pull` останавливает playbook.
+Проверка после выкатки: бот отвечает в двух темах, расход в Venice идёт на правильный ключ.
+
+## Merge из upstream
+
+Эта работа идёт в рабочей копии, не на сервере.
+
+1. Обновите `main`:
    ```bash
    git fetch upstream --prune
    git checkout main && git merge --ff-only upstream/main && git push origin main
    ```
-3. Слейте в `homelab` и решите конфликты:
+2. Слейте в `homelab` и решите конфликты:
    ```bash
    git checkout homelab && git merge main
    ```
@@ -78,26 +100,22 @@ pnpm exec tsx scripts/upgrade-state.ts set
    - `src/gateway-providers/installed.ts` — оставьте строку `import './homelab-iron-proxy.js';`;
    - payload `add-opencode` (`opencode-config.ts`) — сохраните патч `opencode-group-placeholder`;
    - `src/project-doc-compose.ts` — сохраните патч `operator-policy` (вызов `readOperatorPolicy`).
-4. Запустите `/update-nanoclaw`. Он обновляет навыки в отдельном worktree. Обновление может
+3. Запустите `/update-nanoclaw`. Он обновляет навыки в отдельном worktree. Обновление может
    перезаписать `src/channels/telegram.ts` и установленные файлы OpenCode.
-5. Проверьте патчи и примените снова, если нужно:
+4. Проверьте патчи и примените снова, если нужно:
    ```bash
    scripts/homelab/patches.sh check || scripts/homelab/patches.sh apply
    ```
    Если `DIFF` = `CONFLICT`, перенесите изменение вручную по `README.md` патча.
-6. Сборка и тесты:
+5. Сборка и тесты:
    ```bash
    pnpm run build
    pnpm exec vitest run src/gateway-providers src/channels src/router .claude/skills/homelab-iron-proxy \
      src/homelab-operator-policy.test.ts src/project-doc-compose.test.ts
    (cd container/agent-runner && bun test --isolate src/providers/opencode*.test.ts)
    ```
-7. Если шаг 5 изменил файлы, закоммитьте их (`homelab: reapply patches`) и обновите метку:
-   `pnpm exec tsx scripts/upgrade-state.ts set`.
-8. Пересоберите образ агента: `./container/build.sh build`.
-9. Перезапустите службу: `bash setup/lib/restart.sh`. Проверка: бот отвечает в двух темах,
-   расход в Venice идёт на правильный ключ.
-10. `git push origin homelab`.
+6. Если шаг 4 изменил файлы, закоммитьте их (`homelab: reapply patches`).
+7. `git push origin homelab`, затем выкатка на сервер (раздел «Выкатка на сервер»).
 
 Если upstream меняет контракт шлюза (`GatewayProviderDefinition`), упадут сборка или тест
 `src/gateway-providers/homelab-iron-proxy.test.ts`. Исправьте
